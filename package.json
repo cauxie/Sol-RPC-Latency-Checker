@@ -1,0 +1,13 @@
+{
+  "name": "solana-rpc-checker",
+  "version": "1.0.0",
+  "description": "Simple Solana RPC latency & SOL price checker (demo for arbitrage readiness).",
+  "main": "rpc_check.js",
+  "scripts": {
+    "start": "node rpc_check.js"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.78.0",
+    "node-fetch": "^2.6.7"
+  }
+}
