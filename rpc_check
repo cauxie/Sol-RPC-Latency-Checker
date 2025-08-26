@@ -1,0 +1,67 @@
+// rpc_check.js
+// Simple Solana RPC latency + SOL price checker
+// Usage: node rpc_check.js
+// Replace or add RPC URLs in the `rpcs` array below.
+
+const { Connection } = require('@solana/web3.js');
+const fetch = require('node-fetch');
+
+const rpcs = [
+  "https://api.mainnet-beta.solana.com",
+  "https://solana-api.projectserum.com",
+  // add any other RPC endpoints you want to test
+];
+
+async function measureRpc(msRpc) {
+  const conn = new Connection(msRpc, { commitment: 'confirmed' });
+  const start = Date.now();
+  try {
+    // lightweight call — returns current slot
+    await conn.getSlot();
+    const elapsed = Date.now() - start;
+    return { rpc: msRpc, ok: true, ms: elapsed };
+  } catch (err) {
+    return { rpc: msRpc, ok: false, error: err.message || err.toString() };
+  }
+}
+
+async function fetchSolPriceUSD() {
+  try {
+    const res = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=solana&vs_currencies=usd');
+    const json = await res.json();
+    return json?.solana?.usd ?? null;
+  } catch (e) {
+    return null;
+  }
+}
+
+(async () => {
+  console.log('== Solana RPC Latency & SOL Price Checker ==\n');
+
+  const price = await fetchSolPriceUSD();
+  if (price) console.log(`SOL price (CoinGecko): $${price}\n`);
+  else console.log('SOL price: (failed to fetch)\n');
+
+  console.log('Measuring RPC endpoints (this may take a few seconds)...\n');
+
+  // measure all in parallel
+  const results = await Promise.all(rpcs.map(r => measureRpc(r)));
+
+  // sort by latency (fastest first), put failures at end
+  results.sort((a, b) => {
+    if (!a.ok && !b.ok) return 0;
+    if (!a.ok) return 1;
+    if (!b.ok) return -1;
+    return a.ms - b.ms;
+  });
+
+  results.forEach((r, i) => {
+    if (r.ok) {
+      console.log(`${i + 1}. ${r.rpc} — ${r.ms} ms`);
+    } else {
+      console.log(`${i + 1}. ${r.rpc} — FAILED (${r.error})`);
+    }
+  });
+
+  console.log('\nTip: For arbitrage bots, pick low-latency, reliable RPCs and consider private RPC providers.');
+})();
